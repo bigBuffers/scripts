@@ -5,6 +5,9 @@
 # Root is not required. On Linux, DMI serials and per-DIMM details come from
 # dmidecode and need root; without it those parts are skipped with a hint.
 
+# Whole body is one { } block: when piped through "curl | bash" nothing runs until the
+# full script has been read, so a truncated download fails to parse instead of half-running.
+{
 set -u
 set -o pipefail
 export LC_ALL=C
@@ -382,3 +385,4 @@ if [ -n "$OUTPUT" ]; then
 else
   main
 fi
+}
