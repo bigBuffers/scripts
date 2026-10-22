@@ -60,19 +60,23 @@ else
     git clone --branch main "$repo_url" "$install_dir"
 fi
 
-commands=(machine_detect setup_privoxy start_vnc ssh_bot ssh_dcs scripts_update)
-sources=(machine_detect.sh setup_privoxy.sh start_vnc.sh ssh_bot_pc.sh ssh_dcs.sh setup.sh)
+commands=(machine_detect setup_privoxy start_vnc ssh_bot ssh_drivefarm ssh_dcs ssh_pc setup_rr_dt_ssh setup_maglev download_rrlog pull_sil_rrlogs scripts_update)
+sources=(machine_detect.sh setup_privoxy.sh start_vnc.sh ssh_bot_pc.sh ssh_drivefarm.sh ssh_dcs.sh ssh_pc.sh setup_rr_dt_ssh.sh setup_maglev.sh download_rrlog.sh pull_sil_rrlogs.py setup.sh)
 
 # Check every destination before creating links; keep unrelated commands intact.
+# Links that already point into this checkout are ours and get refreshed.
 for ((i=0; i<${#commands[@]}; i++)); do
     source_path="$install_dir/${sources[$i]}"
     destination="$bin_dir/${commands[$i]}"
     [[ -f "$source_path" ]] || { printf 'Missing script: %s\n' "$source_path" >&2; exit 1; }
-    if [[ -e "$destination" || -L "$destination" ]]; then
-        if [[ ! -L "$destination" ]] || [[ "$(readlink "$destination")" != "$source_path" ]]; then
-            printf 'Command already exists: %s\nChoose another SCRIPTS_BIN_DIR.\n' "$destination" >&2
-            exit 1
-        fi
+    if [[ -L "$destination" ]]; then
+        case "$(readlink "$destination")" in
+            "$install_dir"/*) ;;
+            *) printf 'Command already exists: %s\nChoose another SCRIPTS_BIN_DIR.\n' "$destination" >&2; exit 1 ;;
+        esac
+    elif [[ -e "$destination" ]]; then
+        printf 'Command already exists: %s\nChoose another SCRIPTS_BIN_DIR.\n' "$destination" >&2
+        exit 1
     fi
 done
 
@@ -81,9 +85,7 @@ for ((i=0; i<${#commands[@]}; i++)); do
     source_path="$install_dir/${sources[$i]}"
     destination="$bin_dir/${commands[$i]}"
     chmod u+x "$source_path"
-    if [[ ! -L "$destination" ]]; then
-        ln -s "$source_path" "$destination"
-    fi
+    ln -sf "$source_path" "$destination"
 done
 
 if [[ "$update_path" == 1 ]]; then
@@ -108,4 +110,8 @@ fi
 printf '\nInstalled in %s\nCommands: %s\n' "$install_dir" "${commands[*]}"
 printf 'For this shell, run: export PATH=%q:"$PATH"\n' "$bin_dir"
 printf 'Update with: SCRIPTS_DIR=%q SCRIPTS_BIN_DIR=%q scripts_update\n' "$install_dir" "$bin_dir"
+if [[ ! -f "$install_dir/.env" ]]; then
+    printf 'Local settings (passwords, API keys): cp %q %q && chmod 600 %q\n' \
+        "$install_dir/.env.example" "$install_dir/.env" "$install_dir/.env"
+fi
 }
